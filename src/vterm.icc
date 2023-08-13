@@ -514,7 +514,7 @@ namespace zutty
       if (!w) // zero-width code
          return;
 
-      if (pt > 0xffff)
+      if (false)
       {
          // Code outside the Unicode BMP -- not supported.
          // Would get truncated anyway; this is safer and more deterministic.

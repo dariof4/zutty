@@ -242,7 +242,9 @@ namespace zutty
       }
       logI << "Glyph size " << px << "x" << py << std::endl;
 
-      if (FT_Set_Pixel_Sizes (face, px, py))
+      logI << face->num_faces << std::endl;
+
+      if (FT_Select_Size (face, 0))
          throw std::runtime_error ("Could not set pixel sizes");
 
       if (!overlay && face->height)
@@ -251,6 +253,11 @@ namespace zutty
          // font, we need the baseline metric.
          baseline = round (py * (double)face->ascender / face->height);
       }
+         // Load the 'Ò' character as glyph
+         FT_Load_Char (face, 210, FT_LOAD_RENDER);
+         // Set baseline to the highest value of bitmap_top of the font (which is for the 'T' char, are there taller? or maybe a better way to do this [maybe a loop?]?)
+         baseline = face->glyph->bitmap_top;
+         logI << "bitmapTPO " << std::to_string (face->glyph->bitmap_top) << std::endl;
    }
 
    void Font::loadScaled (const FT_Face& face)
@@ -288,26 +295,22 @@ namespace zutty
 
    void Font::loadFace (const FT_Face& face, FT_ULong c, const AtlasPos& apos)
    {
-      if (c > std::numeric_limits<uint16_t>::max ())
-      {
-        #ifdef DEBUG
-         logT << "Skip loading code point 0x" << std::hex << c << std::dec
-              << " outside the Basic Multilingual Plane" << std::endl;
-        #endif
-         ++loadSkipCount;
-         return;
-      }
-
       if (FT_Load_Char (face, c, FT_LOAD_RENDER))
       {
          throw std::runtime_error (
             std::string ("FreeType: Failed to load glyph for char ") +
             std::to_string (c));
       }
-
+      #ifdef DEBUG
+      logI << "Char: " << std::to_string (c) << " bitmap_left: "
+           << std::to_string (face->glyph->bitmap_left) << " bitmap_top: " << std::to_string (face->glyph->bitmap_top) << std::endl;
+      #endif
       // destination pixel offset
       int dx = face->glyph->bitmap_left;
-      int dy = baseline > 0 ? baseline - face->glyph->bitmap_top : 0;
+      // y offset is the tallest characters bitmap_top - the current characters bitmap_top
+      // ref: https://stackoverflow.com/questions/62374506/how-do-i-align-glyphs-along-the-baseline-with-freetype
+      // ref: https://stackoverflow.com/questions/27469321/render-freetype-text-with-flipped-ortho-difference-between-top-and-baseline-of
+      int dy = baseline - face->glyph->bitmap_top;
 
       // source skip horiz and vert
       const int sh = std::max (0, -dy);
